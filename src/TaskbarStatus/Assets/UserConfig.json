@@ -1,0 +1,38 @@
+{
+    "RightFrameModule": "RamVram",
+    "ShowUsage": {
+        "Cpu": true,
+        "Gpu": true
+    },
+    "ShowTemp": {
+        "Cpu": true,
+        "Gpu": true
+    },
+    "ShowMiniGraphs": true,
+    "Colors": {
+        "Text": null,
+        "Graph": "#0078D4",
+        "Warning": "#DC2626"
+    },
+    "WarningTempC": {
+        "Cpu": 90,
+        "Gpu": 90
+    },
+    "RefreshMs": 1000,
+    "StartWithWindows": false,
+    "LavaLamp": {
+        "MotionSource": "CpuUsage",
+        "TemperatureSource": "CpuTemperature",
+        "Palette": {
+            "Cold": "#2563EB",
+            "Hot": "#F97316"
+        },
+        "UseRamForBlobSize": true,
+        "Intensity": 1.0,
+        "Fps": 30
+    },
+    "ImageGif": {
+        "FilePath": null,
+        "FitMode": "Fit"
+    }
+}

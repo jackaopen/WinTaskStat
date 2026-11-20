@@ -10,6 +10,7 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI>
     <UseWindowsForms>true</UseWindowsForms>
+    <ImportFrameworkWinFXTargets>true</ImportFrameworkWinFXTargets>
     <WindowsPackageType>None</WindowsPackageType>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

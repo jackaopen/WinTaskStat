@@ -1,1 +1,17 @@
-
+<Window
+    x:Class="TaskbarStatus.UI.TaskbarWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="WinTaskStat">
+    <Grid x:Name="RootGrid" ColumnSpacing="8">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <StackPanel x:Name="BasicStatsView" VerticalAlignment="Center">
+            <TextBlock Text="CPU —    GPU —" />
+            <TextBlock Text="RAM —    VRAM —" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="hi" Click="buttonsayhiandexit" VerticalAlignment="Center" />
+    </Grid>
+</Window>
