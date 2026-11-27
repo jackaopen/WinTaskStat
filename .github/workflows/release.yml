@@ -1,1 +1,112 @@
+name: build-and-release
 
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  PROJECT: src/TaskbarStatus/TaskbarStatus.csproj
+  # PawnIO driver setup bundled into the installer, from the official releases:
+  # https://github.com/namazso/PawnIO.Setup/releases
+  # The expected SHA256 is read from that release's published asset digest on every run.
+  # To update: just bump the version.
+  PAWNIO_VERSION: "2.2.0"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build
+        run: dotnet build ${{ env.PROJECT }} -c Release
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write      # create the GitHub release
+      id-token: write      # OIDC for attestations
+      attestations: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Resolve version
+        run: |
+          $ver = "${{ github.ref_name }}".TrimStart('v')
+          "APP_VERSION=$ver" >> $env:GITHUB_ENV
+
+      - name: Publish app
+        run: >
+          dotnet publish ${{ env.PROJECT }} -c Release -r win-x64
+          --self-contained true -p:WindowsAppSDKSelfContained=true
+          -o publish
+
+      - name: Download and verify PawnIO setup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 1. Read the expected SHA256 from the official release page (asset digest).
+          $release = Invoke-RestMethod "https://api.github.com/repos/namazso/PawnIO.Setup/releases/tags/$env:PAWNIO_VERSION" `
+            -Headers @{ Authorization = "Bearer $env:GH_TOKEN"; 'User-Agent' = 'WinTaskStat-release' }
+          $asset = $release.assets | Where-Object name -eq 'PawnIO_setup.exe'
+          if (-not $asset) { throw "PawnIO_setup.exe not found in release $env:PAWNIO_VERSION" }
+          if ($asset.digest -notmatch '^sha256:([0-9a-f]{64})$') {
+            throw "Release asset has no sha256 digest: '$($asset.digest)'"
+          }
+          $expected = $Matches[1]
+
+          # 2. Download the file and check it matches.
+          New-Item -ItemType Directory -Force installer/redist | Out-Null
+          $out = "installer/redist/PawnIO_setup.exe"
+          Invoke-WebRequest $asset.browser_download_url -OutFile $out
+          $hash = (Get-FileHash $out -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne $expected) {
+            throw "PawnIO_setup.exe SHA256 mismatch. Release says $expected, downloaded file is $hash"
+          }
+          Write-Host "PawnIO $env:PAWNIO_VERSION verified against release digest: $hash"
+
+      - name: Install Inno Setup (if missing)
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+
+      - name: Build installer
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:APP_VERSION" installer/TaskbarStatus.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+
+      - name: Build portable ZIP
+        run: Compress-Archive -Path publish/* -DestinationPath "dist/WinTaskStat-$env:APP_VERSION-portable.zip"
+
+      - name: SHA-256 checksums
+        run: |
+          Get-ChildItem dist -File | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          } | Set-Content dist/SHA256SUMS.txt -Encoding utf8
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/*-setup.exe
+            dist/*-portable.zip
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/* --title "${{ github.ref_name }}" --generate-notes

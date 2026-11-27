@@ -9,7 +9,7 @@
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
         <StackPanel x:Name="BasicStatsView" VerticalAlignment="Center">
-            <TextBlock Text="CPU —    GPU —" />
+            <TextBlock x:Name="CpuTempText" Text="CPU —" />
             <TextBlock Text="RAM —    VRAM —" />
         </StackPanel>
         <Button Grid.Column="1" Content="hi" Click="buttonsayhiandexit" VerticalAlignment="Center" />
